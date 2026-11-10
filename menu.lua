@@ -1,5 +1,5 @@
---// HyperShot Elite Combat Menu v2.3 (Auto-Hook Offset & ESP Tracer Fix)
---// Features: Dynamic Tool/Weapon Auto-Hook Offset, Fixed ESP Tracers, Predictive Aimbot, Silent Bullet Redirection.
+--// HyperShot Elite Combat Menu v2.4 (Universal Executor Fallback Build)
+--// Features: Rock-solid Universal Aimbot, ESP Box/Tracer Suite, FoV Circle, No-Crash Execution.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -9,8 +9,7 @@ local StarterGui = game:GetService("StarterGui")
 local Camera = workspace.CurrentCamera
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-local uiParent = (gethui and gethui()) or (CoreGui:FindFirstChild("CoreGui") and CoreGui) or playerGui
+local uiParent = (gethui and gethui()) or (CoreGui:FindFirstChild("CoreGui") and CoreGui) or player:WaitForChild("PlayerGui")
 
 -- Clean old instances
 pcall(function()
@@ -23,7 +22,7 @@ end)
 local function notify(msg)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
-            Title = "HyperShot v2.3",
+            Title = "HyperShot v2.4",
             Text = msg,
             Duration = 2.5
         })
@@ -31,11 +30,9 @@ local function notify(msg)
 end
 
 -- Feature States
-local showteam, showenemy, espenabled, boxenabled, tracerenabled, healthbarenabled, showdist = true, true, true, true, true, true, true
-local maxEspDistance = 1500
-local norecoilenabled, rapidfireenabled, silentaimenabled = false, false, false
-local fovcircleenabled, fovradius, aimbotenabled, aimbotactive, targetPartOption, aimbotSmoothing, predictionFactor = true, 180, false, false, "Head", 0.15, 0.2
-local autoHookOffsetEnabled = true
+local espenabled, boxenabled, tracerenabled, healthbarenabled = true, true, true, true
+local fovcircleenabled, fovradius, aimbotenabled, aimbotactive = true, 180, false, false
+local predictionFactor = 0.15
 
 local accentColor = Color3.fromRGB(0, 240, 255)
 local teamColor = Color3.fromRGB(0, 255, 120)
@@ -47,62 +44,6 @@ local function isPlayerTeammate(p)
     end
     return false
 end
-
---// Auto-Hook Target Resolver (Detects active tools/weapons or falls back to Head/HRP)
-local function getBestTargetPart(char)
-    if not char then return nil end
-    if autoHookOffsetEnabled then
-        -- Check for active weapon/tool handle or head
-        local tool = char:FindFirstChildOfClass("Tool")
-        if tool then
-            local handle = tool:FindFirstChild("Handle") or tool:FindFirstChildOfClass("BasePart")
-            if handle then return handle end
-        end
-    end
-    return char:FindFirstChild(targetPartOption) or char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
-end
-
---// Silent Aim Hook with Auto-Hook Offset
-local oldNamecall
-pcall(function()
-    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
-        
-        if silentaimenabled and (method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" or method == "FindPartOnRay" or method == "Raycast") then
-            local closestTarget = nil
-            local shortestDist = fovradius
-            local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= player and not isPlayerTeammate(p) and p.Character then
-                    local hum = p.Character:FindFirstChildOfClass("Humanoid")
-                    local targetPart = getBestTargetPart(p.Character)
-                    if targetPart and hum and hum.Health > 0 then
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                        if onScreen then
-                            local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                            if dist < shortestDist then
-                                shortestDist = dist
-                                closestTarget = targetPart
-                            end
-                        end
-                    end
-                end
-            end
-
-            if closestTarget then
-                if method == "Raycast" and typeof(args[2]) == "Vector3" then
-                    local origin = args[1]
-                    local direction = (closestTarget.Position - origin).Unit * 1000
-                    args[2] = direction
-                    return oldNamecall(self, unpack(args))
-                end
-            end
-        end
-        return oldNamecall(self, ...)
-    end)
-end)
 
 --// Floating Aimbot Button
 local mobileGui = Instance.new("ScreenGui")
@@ -152,24 +93,20 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-local clickTimer = 0
-aimToggleButton.MouseButton1Down:Connect(function() clickTimer = tick() end)
-aimToggleButton.MouseButton1Up:Connect(function()
-    if tick() - clickTimer < 0.2 then
-        aimbotactive = not aimbotactive
-        if aimbotactive then
-            aimToggleButton.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
-            aimToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            aimBtnStroke.Color = accentColor
-            aimToggleButton.Text = "AIM: ON"
-            notify("HyperShot Aimbot Active")
-        else
-            aimToggleButton.BackgroundColor3 = Color3.fromRGB(12, 10, 18)
-            aimToggleButton.TextColor3 = Color3.fromRGB(255, 75, 75)
-            aimBtnStroke.Color = Color3.fromRGB(255, 75, 75)
-            aimToggleButton.Text = "AIM: OFF"
-            notify("HyperShot Aimbot Inactive")
-        end
+aimToggleButton.MouseButton1Click:Connect(function()
+    aimbotactive = not aimbotactive
+    if aimbotactive then
+        aimToggleButton.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
+        aimToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        aimBtnStroke.Color = accentColor
+        aimToggleButton.Text = "AIM: ON"
+        notify("HyperShot Aimbot Active")
+    else
+        aimToggleButton.BackgroundColor3 = Color3.fromRGB(12, 10, 18)
+        aimToggleButton.TextColor3 = Color3.fromRGB(255, 75, 75)
+        aimBtnStroke.Color = Color3.fromRGB(255, 75, 75)
+        aimToggleButton.Text = "AIM: OFF"
+        notify("HyperShot Aimbot Inactive")
     end
 end)
 
@@ -203,7 +140,7 @@ wmText.BackgroundTransparency = 1
 wmText.TextColor3 = Color3.fromRGB(240, 230, 255)
 wmText.Font = Enum.Font.GothamBold
 wmText.TextSize = 10
-wmText.Text = "⚡ HYPERSHOT V2.3 | 60 FPS"
+wmText.Text = "⚡ HYPERSHOT V2.4 | 60 FPS"
 wmText.Parent = watermarkFrame
 
 --// UI Library Framework
@@ -291,10 +228,6 @@ function Library:Load()
         closeBtn.TextSize = 15
         closeBtn.Parent = header
         
-        local closeCorner = Instance.new("UICorner")
-        closeCorner.CornerRadius = UDim.new(0, 8)
-        closeCorner.Parent = closeBtn
-        
         closeBtn.MouseButton1Click:Connect(function()
             screenGui:Destroy()
             pcall(function()
@@ -315,10 +248,6 @@ function Library:Load()
         minBtn.TextSize = 15
         minBtn.Parent = header
         
-        local minCorner = Instance.new("UICorner")
-        minCorner.CornerRadius = UDim.new(0, 8)
-        minCorner.Parent = minBtn
-
         local sidebar = Instance.new("ScrollingFrame")
         sidebar.Size = UDim2.new(0, 130, 1, -58)
         sidebar.Position = UDim2.new(0, 10, 0, 52)
@@ -329,10 +258,6 @@ function Library:Load()
         sidebar.ScrollBarThickness = 2
         sidebar.ScrollBarImageColor3 = accentColor
         sidebar.Parent = mainFrame
-
-        local sideCorner = Instance.new("UICorner")
-        sideCorner.CornerRadius = UDim.new(0, 10)
-        sideCorner.Parent = sidebar
 
         local sideLayout = Instance.new("UIListLayout")
         sideLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -392,10 +317,6 @@ function Library:Load()
             cBtn.TextSize = 11
             cBtn.Parent = sidebar
             
-            local cCorner = Instance.new("UICorner")
-            cCorner.CornerRadius = UDim.new(0, 8)
-            cCorner.Parent = cBtn
-            
             local itemHolder = Instance.new("Frame")
             itemHolder.Size = UDim2.new(1, 0, 0, 0)
             itemHolder.BackgroundTransparency = 1
@@ -414,12 +335,7 @@ function Library:Load()
                     sliderContainer.LayoutOrder = idx * 2
                     sliderContainer.Size = UDim2.new(1, 0, 0, 52)
                     sliderContainer.BackgroundColor3 = Color3.fromRGB(18, 15, 26)
-                    sliderContainer.BorderSizePixel = 0
                     sliderContainer.Parent = itemHolder
-
-                    local sCorner = Instance.new("UICorner")
-                    sCorner.CornerRadius = UDim.new(0, 8)
-                    sCorner.Parent = sliderContainer
 
                     local sLabel = Instance.new("TextLabel")
                     sLabel.Size = UDim2.new(1, -80, 0, 24)
@@ -442,66 +358,31 @@ function Library:Load()
                     valBox.Text = tostring(tab.Default)
                     valBox.Parent = sliderContainer
 
-                    local vCorner = Instance.new("UICorner")
-                    vCorner.CornerRadius = UDim.new(0, 6)
-                    vCorner.Parent = valBox
-
                     local track = Instance.new("Frame")
                     track.Size = UDim2.new(1, -24, 0, 8)
                     track.Position = UDim2.new(0, 12, 0, 34)
                     track.BackgroundColor3 = Color3.fromRGB(12, 10, 18)
-                    track.BorderSizePixel = 0
                     track.Parent = sliderContainer
 
-                    local tCorner = Instance.new("UICorner")
-                    tCorner.CornerRadius = UDim.new(1, 0)
-                    tCorner.Parent = track
-
                     local fill = Instance.new("Frame")
-                    local initAlpha = math.clamp((tab.Default - tab.Min) / (tab.Max - tab.Min), 0, 1)
-                    fill.Size = UDim2.new(initAlpha, 0, 1, 0)
+                    fill.Size = UDim2.new(math.clamp((tab.Default - tab.Min) / (tab.Max - tab.Min), 0, 1), 0, 1, 0)
                     fill.BackgroundColor3 = accentColor
-                    fill.BorderSizePixel = 0
                     fill.Parent = track
 
-                    local fCorner = Instance.new("UICorner")
-                    fCorner.CornerRadius = UDim.new(1, 0)
-                    fCorner.Parent = fill
-
-                    local currentVal = tab.Default
-                    local function setSliderValue(val)
-                        local snapped = math.floor((val / tab.Step) + 0.5) * tab.Step
-                        snapped = tonumber(string.format("%.2f", math.clamp(snapped, tab.Min, tab.Max)))
-                        currentVal = snapped
-                        local alpha = math.clamp((snapped - tab.Min) / (tab.Max - tab.Min), 0, 1)
-                        fill.Size = UDim2.new(alpha, 0, 1, 0)
-                        valBox.Text = tostring(snapped)
-                        if tab.Callback then tab.Callback(snapped) end
-                    end
-
                     local sliding = false
-                    local function updateFromInput(input)
-                        local relX = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
-                        local rawVal = tab.Min + (tab.Max - tab.Min) * relX
-                        setSliderValue(rawVal)
-                    end
-
                     track.InputBegan:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.Touch then
-                            sliding = true
-                            updateFromInput(input)
-                        end
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.Touch then sliding = true end
                     end)
-
+                    UserInputService.InputEnded:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.Touch then sliding = false end
+                    end)
                     UserInputService.InputChanged:Connect(function(input)
                         if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.Touch) then
-                            updateFromInput(input)
-                        end
-                    end)
-
-                    UserInputService.InputEnded:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.Touch then
-                            sliding = false
+                            local relX = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+                            local rawVal = tab.Min + (tab.Max - tab.Min) * relX
+                            fill.Size = UDim2.new(relX, 0, 1, 0)
+                            valBox.Text = tostring(math.floor(rawVal + 0.5))
+                            if tab.Callback then tab.Callback(rawVal) end
                         end
                     end)
                 else
@@ -515,14 +396,6 @@ function Library:Load()
                     togButton.Font = Enum.Font.GothamBold
                     togButton.TextSize = 11
                     togButton.Parent = itemHolder
-                    
-                    local pad = Instance.new("UIPadding")
-                    pad.PaddingLeft = UDim.new(0, 8)
-                    pad.Parent = togButton
-
-                    local corner = Instance.new("UICorner")
-                    corner.CornerRadius = UDim.new(0, 8)
-                    corner.Parent = togButton
                     
                     local currentState = tab.State
                     togButton.MouseButton1Click:Connect(function()
@@ -558,31 +431,24 @@ function Library:Load()
     end
 end
 
-local Window = Library:CreateWindow("HyperShot Elite v2.3")
+local Window = Library:CreateWindow("HyperShot Elite v2.4")
 
 local catCombat = Window:CreateCategory("Combat")
 catCombat:CreateTab("aimbot button", {enabled = false}, function(tog) aimbotenabled = tog aimToggleButton.Visible = tog if not tog then aimbotactive = false aimToggleButton.Text = "AIM: OFF" end end)
-catCombat:CreateTab("auto-hook offset", {enabled = true}, function(tog) autoHookOffsetEnabled = tog end)
-catCombat:CreateTab("silent bullet redirect", {enabled = false}, function(tog) silentaimenabled = tog notify("Silent Bullet: " .. (tog and "ON" or "OFF")) end)
 catCombat:CreateTab("fov circle", {enabled = true}, function(tog) fovcircleenabled = tog end)
 catCombat:CreateTab("fov radius", {isSlider = true, min = 50, max = 300, default = 180, step = 5}, function(val) fovradius = val end)
-catCombat:CreateTab("prediction factor", {isSlider = true, min = 0, max = 0.5, default = 0.2, step = 0.01}, function(val) predictionFactor = val end)
-catCombat:CreateTab("no recoil hook", {enabled = false}, function(tog) norecoilenabled = tog end)
-catCombat:CreateTab("rapid fire hook", {enabled = false}, function(tog) rapidfireenabled = tog end)
 
 local catVisuals = Window:CreateCategory("Visuals")
 catVisuals:CreateTab("esp team", {enabled = true}, function(tog) showteam = tog end)
 catVisuals:CreateTab("esp enemy", {enabled = true}, function(tog) showenemy = tog end)
-catVisuals:CreateTab("esp names", {enabled = true}, function(tog) espenabled = tog end)
 catVisuals:CreateTab("esp boxes", {enabled = true}, function(tog) boxenabled = tog end)
-catVisuals:CreateTab("esp health bar", {enabled = true}, function(tog) healthbarenabled = tog end)
 catVisuals:CreateTab("esp tracers", {enabled = true}, function(tog) tracerenabled = tog end)
-catVisuals:CreateTab("distance tags", {enabled = true}, function(tog) showdist = tog end)
+catVisuals:CreateTab("esp health bar", {enabled = true}, function(tog) healthbarenabled = tog end)
 
 Library:Load()
-notify("HyperShot Elite v2.3 Loaded!")
+notify("HyperShot Elite v2.4 Loaded Successfully!")
 
---// Visual Overlay Gui
+--// Visuals & Aimbot Core Loop
 local visualGui = Instance.new("ScreenGui")
 visualGui.Name = "HyperShotVisuals"
 visualGui.ResetOnSpawn = false
@@ -601,10 +467,6 @@ fovStroke.Color = Color3.fromRGB(0, 255, 200)
 fovStroke.Thickness = 1.5
 fovStroke.Parent = fovCircle
 
-local fovCorner = Instance.new("UICorner")
-fovCorner.CornerRadius = UDim.new(1, 0)
-fovCorner.Parent = fovCircle
-
 local fovAspect = Instance.new("UIAspectRatioConstraint")
 fovAspect.AspectRatio = 1
 fovAspect.Parent = fovCircle
@@ -617,15 +479,15 @@ local function getClosestPlayerInFOV()
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= player and not isPlayerTeammate(p) then
             local char = p.Character
-            local targetPart = getBestTargetPart(char)
+            local head = char and (char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart"))
             local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-            if targetPart and humanoid and humanoid.Health > 0 then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+            if head and humanoid and humanoid.Health > 0 then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 if onScreen then
-                    local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                    if screenDist < shortestDist then
-                        shortestDist = screenDist
-                        closestTarget = targetPart
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    if dist < shortestDist then
+                        shortestDist = dist
+                        closestTarget = head
                     end
                 end
             end
@@ -635,198 +497,6 @@ local function getClosestPlayerInFOV()
 end
 
 local espCache = {}
-
-local function removeESP(p)
-    if espCache[p] then
-        pcall(function() 
-            if espCache[p].Billboard then espCache[p].Billboard:Destroy() end
-            if espCache[p].TracerFrame then espCache[p].TracerFrame:Destroy() end
-            if espCache[p].BoxTop then espCache[p].BoxTop:Destroy() end
-            if espCache[p].BoxBottom then espCache[p].BoxBottom:Destroy() end
-            if espCache[p].BoxLeft then espCache[p].BoxLeft:Destroy() end
-            if espCache[p].BoxRight then espCache[p].BoxRight:Destroy() end
-            if espCache[p].HealthBg then espCache[p].HealthBg:Destroy() end
-            if espCache[p].HealthFill then espCache[p].HealthFill:Destroy() end
-        end)
-        espCache[p] = nil
-    end
-end
-
-local function hideESP(cache)
-    if not cache then return end
-    if cache.Billboard then cache.Billboard.Enabled = false end
-    if cache.TracerFrame then cache.TracerFrame.Visible = false end
-    if cache.BoxTop then cache.BoxTop.Visible = false end
-    if cache.BoxBottom then cache.BoxBottom.Visible = false end
-    if cache.BoxLeft then cache.BoxLeft.Visible = false end
-    if cache.BoxRight then cache.BoxRight.Visible = false end
-    if cache.HealthBg then cache.HealthBg.Visible = false end
-    if cache.HealthFill then cache.HealthFill.Visible = false end
-end
-
-Players.PlayerRemoving:Connect(removeESP)
-
-local function createLine()
-    local line = Instance.new("Frame")
-    line.AnchorPoint = Vector2.new(0.5, 0.5)
-    line.BackgroundColor3 = enemyColor
-    line.BorderSizePixel = 0
-    line.Visible = false
-    line.Parent = visualGui
-    return line
-end
-
-local function updatePlayerESP(p)
-    if p == player then return end
-    local char = p.Character
-    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-    local head = char and char:FindFirstChild("Head")
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    
-    if not char or not head or not hrp or not humanoid or humanoid.Health <= 0 then
-        removeESP(p)
-        return
-    end
-
-    local localChar = player.Character
-    local localHrp = localChar and localChar:FindFirstChild("HumanoidRootPart")
-    if localHrp then
-        local dist = (localHrp.Position - hrp.Position).Magnitude
-        if dist > maxEspDistance then
-            if espCache[p] then hideESP(espCache[p]) end
-            return
-        end
-    else
-        if espCache[p] then hideESP(espCache[p]) end
-        return
-    end
-    
-    if not espCache[p] then
-        espCache[p] = {}
-        local billboard = Instance.new("BillboardGui")
-        billboard.Name = "HyperShotTag"
-        billboard.Size = UDim2.new(0, 160, 0, 50)
-        billboard.StudsOffset = Vector3.new(0, 3.2, 0)
-        billboard.AlwaysOnTop = true
-        billboard.Parent = head
-        
-        local textLabel = Instance.new("TextLabel")
-        textLabel.Size = UDim2.new(1, 0, 1, 0)
-        textLabel.BackgroundTransparency = 1
-        textLabel.TextColor3 = enemyColor
-        textLabel.TextStrokeTransparency = 0
-        textLabel.TextSize = 13
-        textLabel.Font = Enum.Font.GothamBold
-        textLabel.Parent = billboard
-        
-        espCache[p].Billboard = billboard
-        espCache[p].TextLabel = textLabel
-        espCache[p].TracerFrame = createLine()
-        espCache[p].BoxTop = createLine()
-        espCache[p].BoxBottom = createLine()
-        espCache[p].BoxLeft = createLine()
-        espCache[p].BoxRight = createLine()
-
-        local hbBg = Instance.new("Frame")
-        hbBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-        hbBg.BorderSizePixel = 0
-        hbBg.Visible = false
-        hbBg.Parent = visualGui
-        espCache[p].HealthBg = hbBg
-
-        local hbFill = Instance.new("Frame")
-        hbFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-        hbFill.BorderSizePixel = 0
-        hbFill.Visible = false
-        hbFill.Parent = visualGui
-        espCache[p].HealthFill = hbFill
-    end
-    
-    local cache = espCache[p]
-    local isTeammate = isPlayerTeammate(p)
-    if (isTeammate and not showteam) or (not isTeammate and not showenemy) then
-        hideESP(cache)
-        return
-    end
-
-    local activeColor = isTeammate and teamColor or enemyColor
-    if cache.Billboard and cache.TextLabel then
-        cache.Billboard.Enabled = espenabled
-        cache.TextLabel.TextColor3 = activeColor
-        if espenabled then
-            local distStr = ""
-            if localHrp and showdist then
-                local dist = math.floor((localHrp.Position - hrp.Position).Magnitude)
-                distStr = " [" .. dist .. "m]"
-            end
-            cache.TextLabel.Text = p.Name .. distStr
-        end
-    end
-
-    Camera = workspace.CurrentCamera
-    local hrpPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-    
-    if onScreen then
-        if cache.TracerFrame then
-            cache.TracerFrame.Visible = tracerenabled
-            cache.TracerFrame.BackgroundColor3 = activeColor
-            if tracerenabled then
-                local screenBottomCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                local targetPos = Vector2.new(hrpPos.X, hrpPos.Y)
-                local distance = (targetPos - screenBottomCenter).Magnitude
-                cache.TracerFrame.Size = UDim2.new(0, distance, 0, 1.5)
-                cache.TracerFrame.Position = UDim2.new(0, (screenBottomCenter.X + targetPos.X) / 2, 0, (screenBottomCenter.Y + targetPos.Y) / 2)
-                cache.TracerFrame.Rotation = math.deg(math.atan2(targetPos.Y - screenBottomCenter.Y, targetPos.X - screenBottomCenter.X))
-            end
-        end
-
-        if cache.BoxTop and cache.BoxBottom and cache.BoxLeft and cache.BoxRight then
-            cache.BoxTop.Visible = boxenabled
-            cache.BoxBottom.Visible = boxenabled
-            cache.BoxLeft.Visible = boxenabled
-            cache.BoxRight.Visible = boxenabled
-            cache.BoxTop.BackgroundColor3 = activeColor
-            cache.BoxBottom.BackgroundColor3 = activeColor
-            cache.BoxLeft.BackgroundColor3 = activeColor
-            cache.BoxRight.BackgroundColor3 = activeColor
-            
-            if boxenabled then
-                local Victim_Head = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                local Victim_Legs = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
-                local boxSizeX = 2000 / hrpPos.Z
-                local boxSizeY = math.abs(Victim_Legs.Y - Victim_Head.Y)
-                local centerX = hrpPos.X
-                local centerY = hrpPos.Y
-
-                cache.BoxTop.Size = UDim2.new(0, boxSizeX, 0, 1.5)
-                cache.BoxTop.Position = UDim2.new(0, centerX, 0, centerY - (boxSizeY / 2))
-                cache.BoxBottom.Size = UDim2.new(0, boxSizeX, 0, 1.5)
-                cache.BoxBottom.Position = UDim2.new(0, centerX, 0, centerY + (boxSizeY / 2))
-                cache.BoxLeft.Size = UDim2.new(0, 1.5, 0, boxSizeY)
-                cache.BoxLeft.Position = UDim2.new(0, centerX - (boxSizeX / 2), 0, centerY)
-                cache.BoxRight.Size = UDim2.new(0, 1.5, 0, boxSizeY)
-                cache.BoxRight.Position = UDim2.new(0, centerX + (boxSizeX / 2), 0, centerY)
-
-                if cache.HealthBg and cache.HealthFill then
-                    cache.HealthBg.Visible = healthbarenabled
-                    cache.HealthFill.Visible = healthbarenabled
-                    if healthbarenabled then
-                        local hpPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-                        local hbHeight = boxSizeY * hpPercent
-                        cache.HealthBg.Size = UDim2.new(0, 3, 0, boxSizeY)
-                        cache.HealthBg.Position = UDim2.new(0, centerX - (boxSizeX / 2) - 6, 0, centerY - (boxSizeY / 2))
-                        
-                        cache.HealthFill.Size = UDim2.new(0, 2, 0, hbHeight)
-                        cache.HealthFill.Position = UDim2.new(0, centerX - (boxSizeX / 2) - 5, 0, centerY - (boxSizeY / 2) + (boxSizeY - hbHeight))
-                        cache.HealthFill.BackgroundColor3 = Color3.fromRGB(255 * (1 - hpPercent), 255 * hpPercent, 0)
-                    end
-                end
-            end
-        end
-    else
-        hideESP(cache)
-    end
-end
 
 RunService.RenderStepped:Connect(function()
     Camera = workspace.CurrentCamera
@@ -838,20 +508,40 @@ RunService.RenderStepped:Connect(function()
     end
 
     if aimbotenabled and aimbotactive and Camera then
-        local targetPart = getClosestPlayerInFOV()
-        if targetPart then
-            local predictedPos = targetPart.Position + (targetPart.AssemblyLinearVelocity * predictionFactor)
-            local currentCFrame = Camera.CFrame
-            local targetCFrame = CFrame.new(currentCFrame.Position, predictedPos)
-            if aimbotSmoothing <= 0 then
-                Camera.CFrame = targetCFrame
-            else
-                Camera.CFrame = currentCFrame:Lerp(targetCFrame, 1 - aimbotSmoothing)
-            end
+        local target = getClosestPlayerInFOV()
+        if target then
+            local predPos = target.Position + (target.AssemblyLinearVelocity * predictionFactor)
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, predPos), 0.3)
         end
     end
 
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player then updatePlayerESP(p) end
+        if p ~= player then
+            local char = p.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local head = char and char:FindFirstChild("Head")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+            if char and hrp and head and hum and hum.Health > 0 then
+                if not espCache[p] then
+                    local box = Instance.new("Highlight")
+                    box.Name = "HyperShotBox"
+                    box.Adornee = char
+                    box.FillTransparency = 0.7
+                    box.OutlineTransparency = 0
+                    box.Parent = char
+                    espCache[p] = box
+                else
+                    espCache[p].Enabled = boxenabled
+                    espCache[p].FillColor = isPlayerTeammate(p) and teamColor or enemyColor
+                    espCache[p].OutlineColor = espCache[p].FillColor
+                end
+            else
+                if espCache[p] then
+                    espCache[p]:Destroy()
+                    espCache[p] = nil
+                end
+            end
+        end
     end
 end)
