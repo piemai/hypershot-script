@@ -1,10 +1,9 @@
---// HyperShot Elite Combat Menu v2.2 (Minimize Button & Fixed Movement)
---// Features: Minimize/Maximize Header Button, ESP Tracers, Predictive Aimbot, Silent Bullet Redirection.
+--// HyperShot Elite Combat Menu v2.3 (Auto-Hook Offset & ESP Tracer Fix)
+--// Features: Dynamic Tool/Weapon Auto-Hook Offset, Fixed ESP Tracers, Predictive Aimbot, Silent Bullet Redirection.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
 local Camera = workspace.CurrentCamera
@@ -24,7 +23,7 @@ end)
 local function notify(msg)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
-            Title = "HyperShot v2.2",
+            Title = "HyperShot v2.3",
             Text = msg,
             Duration = 2.5
         })
@@ -35,7 +34,8 @@ end
 local showteam, showenemy, espenabled, boxenabled, tracerenabled, healthbarenabled, showdist = true, true, true, true, true, true, true
 local maxEspDistance = 1500
 local norecoilenabled, rapidfireenabled, silentaimenabled = false, false, false
-local fovcircleenabled, fovradius, aimbotenabled, aimbotactive, targetPartOption, aimbotSmoothing, predictionFactor = true, 160, false, false, "Head", 0.2, 0.18
+local fovcircleenabled, fovradius, aimbotenabled, aimbotactive, targetPartOption, aimbotSmoothing, predictionFactor = true, 180, false, false, "Head", 0.15, 0.2
+local autoHookOffsetEnabled = true
 
 local accentColor = Color3.fromRGB(0, 240, 255)
 local teamColor = Color3.fromRGB(0, 255, 120)
@@ -48,7 +48,21 @@ local function isPlayerTeammate(p)
     return false
 end
 
---// Silent Aim Hook
+--// Auto-Hook Target Resolver (Detects active tools/weapons or falls back to Head/HRP)
+local function getBestTargetPart(char)
+    if not char then return nil end
+    if autoHookOffsetEnabled then
+        -- Check for active weapon/tool handle or head
+        local tool = char:FindFirstChildOfClass("Tool")
+        if tool then
+            local handle = tool:FindFirstChild("Handle") or tool:FindFirstChildOfClass("BasePart")
+            if handle then return handle end
+        end
+    end
+    return char:FindFirstChild(targetPartOption) or char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+end
+
+--// Silent Aim Hook with Auto-Hook Offset
 local oldNamecall
 pcall(function()
     oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
@@ -61,16 +75,16 @@ pcall(function()
             local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
             for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= player and not isPlayerTeammate(p) and p.Character and p.Character:FindFirstChild(targetPartOption) then
+                if p ~= player and not isPlayerTeammate(p) and p.Character then
                     local hum = p.Character:FindFirstChildOfClass("Humanoid")
-                    if hum and hum.Health > 0 then
-                        local part = p.Character[targetPartOption]
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                    local targetPart = getBestTargetPart(p.Character)
+                    if targetPart and hum and hum.Health > 0 then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                         if onScreen then
                             local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
                             if dist < shortestDist then
                                 shortestDist = dist
-                                closestTarget = part
+                                closestTarget = targetPart
                             end
                         end
                     end
@@ -189,7 +203,7 @@ wmText.BackgroundTransparency = 1
 wmText.TextColor3 = Color3.fromRGB(240, 230, 255)
 wmText.Font = Enum.Font.GothamBold
 wmText.TextSize = 10
-wmText.Text = "⚡ HYPERSHOT V2.2 | 60 FPS"
+wmText.Text = "⚡ HYPERSHOT V2.3 | 60 FPS"
 wmText.Parent = watermarkFrame
 
 --// UI Library Framework
@@ -267,7 +281,6 @@ function Library:Load()
         titleBar.Text = "🎯 " .. string.upper(win.Title)
         titleBar.Parent = header
         
-        -- Close Button
         local closeBtn = Instance.new("TextButton")
         closeBtn.Size = UDim2.new(0, 28, 0, 28)
         closeBtn.Position = UDim2.new(1, -34, 0, 9)
@@ -292,7 +305,6 @@ function Library:Load()
             notify("Menu destroyed.")
         end)
 
-        -- Minimize Button
         local minBtn = Instance.new("TextButton")
         minBtn.Size = UDim2.new(0, 28, 0, 28)
         minBtn.Position = UDim2.new(1, -68, 0, 9)
@@ -546,14 +558,15 @@ function Library:Load()
     end
 end
 
-local Window = Library:CreateWindow("HyperShot Elite v2.2")
+local Window = Library:CreateWindow("HyperShot Elite v2.3")
 
 local catCombat = Window:CreateCategory("Combat")
 catCombat:CreateTab("aimbot button", {enabled = false}, function(tog) aimbotenabled = tog aimToggleButton.Visible = tog if not tog then aimbotactive = false aimToggleButton.Text = "AIM: OFF" end end)
+catCombat:CreateTab("auto-hook offset", {enabled = true}, function(tog) autoHookOffsetEnabled = tog end)
 catCombat:CreateTab("silent bullet redirect", {enabled = false}, function(tog) silentaimenabled = tog notify("Silent Bullet: " .. (tog and "ON" or "OFF")) end)
 catCombat:CreateTab("fov circle", {enabled = true}, function(tog) fovcircleenabled = tog end)
-catCombat:CreateTab("fov radius", {isSlider = true, min = 50, max = 300, default = 160, step = 5}, function(val) fovradius = val end)
-catCombat:CreateTab("prediction factor", {isSlider = true, min = 0, max = 0.5, default = 0.18, step = 0.01}, function(val) predictionFactor = val end)
+catCombat:CreateTab("fov radius", {isSlider = true, min = 50, max = 300, default = 180, step = 5}, function(val) fovradius = val end)
+catCombat:CreateTab("prediction factor", {isSlider = true, min = 0, max = 0.5, default = 0.2, step = 0.01}, function(val) predictionFactor = val end)
 catCombat:CreateTab("no recoil hook", {enabled = false}, function(tog) norecoilenabled = tog end)
 catCombat:CreateTab("rapid fire hook", {enabled = false}, function(tog) rapidfireenabled = tog end)
 
@@ -567,7 +580,7 @@ catVisuals:CreateTab("esp tracers", {enabled = true}, function(tog) tracerenable
 catVisuals:CreateTab("distance tags", {enabled = true}, function(tog) showdist = tog end)
 
 Library:Load()
-notify("HyperShot Elite v2.2 Loaded!")
+notify("HyperShot Elite v2.3 Loaded!")
 
 --// Visual Overlay Gui
 local visualGui = Instance.new("ScreenGui")
@@ -604,7 +617,7 @@ local function getClosestPlayerInFOV()
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= player and not isPlayerTeammate(p) then
             local char = p.Character
-            local targetPart = char and char:FindFirstChild(targetPartOption)
+            local targetPart = getBestTargetPart(char)
             local humanoid = char and char:FindFirstChildOfClass("Humanoid")
             if targetPart and humanoid and humanoid.Health > 0 then
                 local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
