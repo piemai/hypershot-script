@@ -1,5 +1,5 @@
---// HyperShot Elite Combat Menu v2.0 (Silent Bullet Redirection & Weapon Hooks)
---// Features: Silent Bullet Raycast Hook, Recoil Bypass, Rapid Fire Hooks, Predictive Aimbot, Full ESP Suite.
+--// HyperShot Elite Combat Menu v2.2 (Minimize Button & Fixed Movement)
+--// Features: Minimize/Maximize Header Button, ESP Tracers, Predictive Aimbot, Silent Bullet Redirection.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -24,7 +24,7 @@ end)
 local function notify(msg)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
-            Title = "HyperShot v2.0",
+            Title = "HyperShot v2.2",
             Text = msg,
             Duration = 2.5
         })
@@ -48,7 +48,7 @@ local function isPlayerTeammate(p)
     return false
 end
 
---// Silent Aim / Bullet Redirection Hook using Metatable Hooking (if available) or Workspace Raycast interception
+--// Silent Aim Hook
 local oldNamecall
 pcall(function()
     oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
@@ -56,7 +56,6 @@ pcall(function()
         local args = {...}
         
         if silentaimenabled and (method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRayWithWhitelist" or method == "FindPartOnRay" or method == "Raycast") then
-            -- Find closest target in FOV to redirect bullet raycasts
             local closestTarget = nil
             local shortestDist = fovradius
             local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -80,7 +79,6 @@ pcall(function()
 
             if closestTarget then
                 if method == "Raycast" and typeof(args[2]) == "Vector3" then
-                    -- Redirect raycast direction towards target position
                     local origin = args[1]
                     local direction = (closestTarget.Position - origin).Unit * 1000
                     args[2] = direction
@@ -191,7 +189,7 @@ wmText.BackgroundTransparency = 1
 wmText.TextColor3 = Color3.fromRGB(240, 230, 255)
 wmText.Font = Enum.Font.GothamBold
 wmText.TextSize = 10
-wmText.Text = "⚡ HYPERSHOT V2.0 | 60 FPS"
+wmText.Text = "⚡ HYPERSHOT V2.2 | 60 FPS"
 wmText.Parent = watermarkFrame
 
 --// UI Library Framework
@@ -259,7 +257,7 @@ function Library:Load()
         headerCorner.Parent = header
 
         local titleBar = Instance.new("TextLabel")
-        titleBar.Size = UDim2.new(1, -75, 1, 0)
+        titleBar.Size = UDim2.new(1, -100, 1, 0)
         titleBar.BackgroundTransparency = 1
         titleBar.TextColor3 = Color3.fromRGB(220, 190, 255)
         titleBar.Font = Enum.Font.GothamBold
@@ -269,6 +267,7 @@ function Library:Load()
         titleBar.Text = "🎯 " .. string.upper(win.Title)
         titleBar.Parent = header
         
+        -- Close Button
         local closeBtn = Instance.new("TextButton")
         closeBtn.Size = UDim2.new(0, 28, 0, 28)
         closeBtn.Position = UDim2.new(1, -34, 0, 9)
@@ -293,11 +292,20 @@ function Library:Load()
             notify("Menu destroyed.")
         end)
 
-        UserInputService.InputBegan:Connect(function(input, gp)
-            if input.KeyCode == Enum.KeyCode.RightControl or input.KeyCode == Enum.KeyCode.Insert then
-                mainFrame.Visible = not mainFrame.Visible
-            end
-        end)
+        -- Minimize Button
+        local minBtn = Instance.new("TextButton")
+        minBtn.Size = UDim2.new(0, 28, 0, 28)
+        minBtn.Position = UDim2.new(1, -68, 0, 9)
+        minBtn.BackgroundColor3 = Color3.fromRGB(35, 28, 50)
+        minBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        minBtn.Text = "-"
+        minBtn.Font = Enum.Font.GothamBold
+        minBtn.TextSize = 15
+        minBtn.Parent = header
+        
+        local minCorner = Instance.new("UICorner")
+        minCorner.CornerRadius = UDim.new(0, 8)
+        minCorner.Parent = minBtn
 
         local sidebar = Instance.new("ScrollingFrame")
         sidebar.Size = UDim2.new(0, 130, 1, -58)
@@ -334,6 +342,30 @@ function Library:Load()
         contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
         contentLayout.Padding = UDim.new(0, 6)
         contentLayout.Parent = contentContainer
+
+        local minimized = false
+        local previousSize = mainFrame.Size
+        minBtn.MouseButton1Click:Connect(function()
+            minimized = not minimized
+            if minimized then
+                previousSize = mainFrame.Size
+                sidebar.Visible = false
+                contentContainer.Visible = false
+                mainFrame.Size = UDim2.new(0, previousSize.X.Offset, 0, 46)
+                minBtn.Text = "+"
+            else
+                mainFrame.Size = previousSize
+                sidebar.Visible = true
+                contentContainer.Visible = true
+                minBtn.Text = "-"
+            end
+        end)
+
+        UserInputService.InputBegan:Connect(function(input, gp)
+            if input.KeyCode == Enum.KeyCode.RightControl or input.KeyCode == Enum.KeyCode.Insert then
+                mainFrame.Visible = not mainFrame.Visible
+            end
+        end)
 
         local categoryFrames = {}
         local categoryButtons = {}
@@ -514,7 +546,7 @@ function Library:Load()
     end
 end
 
-local Window = Library:CreateWindow("HyperShot Elite v2.0")
+local Window = Library:CreateWindow("HyperShot Elite v2.2")
 
 local catCombat = Window:CreateCategory("Combat")
 catCombat:CreateTab("aimbot button", {enabled = false}, function(tog) aimbotenabled = tog aimToggleButton.Visible = tog if not tog then aimbotactive = false aimToggleButton.Text = "AIM: OFF" end end)
@@ -535,7 +567,7 @@ catVisuals:CreateTab("esp tracers", {enabled = true}, function(tog) tracerenable
 catVisuals:CreateTab("distance tags", {enabled = true}, function(tog) showdist = tog end)
 
 Library:Load()
-notify("HyperShot Elite v2.0 Loaded!")
+notify("HyperShot Elite v2.2 Loaded!")
 
 --// Visual Overlay Gui
 local visualGui = Instance.new("ScreenGui")
