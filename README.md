@@ -24,4 +24,4 @@ A high-performance, glassmorphic Roblox combat utility script featuring predicti
 Execute the script using any standard Lua executor (Delta, Codex, Synapse, etc.):
 
 ```lua
-loadstring(game:HttpGet("[https://raw.githubusercontent.com/piemai/hypershot-script/refs/heads/main/menu.lua](https://raw.githubusercontent.com/piemai/hypershot-script/refs/heads/main/menu.lua)"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/piemai/hypershot-script/refs/heads/main/menu.lua"))()
